@@ -1,0 +1,115 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local camera = workspace.CurrentCamera
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 180, 0, 40)
+toggleButton.Position = UDim2.new(0, 20, 0, 100)
+toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 14
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.Text = "Aimbot: OFF (Keybind: K)"
+toggleButton.AutoButtonColor = false
+toggleButton.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = toggleButton
+
+local aimbotEnabled = false
+local currentTarget = nil
+
+function getTargetAtCenter()
+	local closestTarget = nil
+	local closestDist = math.huge
+	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+	for _, model in pairs(workspace:GetDescendants()) do
+		if model:IsA("Model") and model ~= localPlayer.Character and model:FindFirstChild("Humanoid") and model:FindFirstChild("Head") then
+			local humanoid = model:FindFirstChild("Humanoid")
+			if humanoid.Health > 0 then
+				local head = model.Head
+				local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+				if onScreen then
+					local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+					if dist < closestDist then
+						closestDist = dist
+						closestTarget = head
+					end
+				end
+			end
+		end
+	end
+
+	return closestTarget
+end
+
+local function setAimbotEnabled(state)
+	aimbotEnabled = state
+	toggleButton.Text = aimbotEnabled and "Aimbot: ON (Keybind: K)" or "Aimbot: OFF (Keybind: K)"
+	local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	local goalColor = aimbotEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
+	TweenService:Create(toggleButton, tweenInfo, {BackgroundColor3 = goalColor}):Play()
+
+	currentTarget = aimbotEnabled and getTargetAtCenter() or nil
+end
+
+toggleButton.MouseButton1Click:Connect(function()
+	setAimbotEnabled(not aimbotEnabled)
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if not processed and input.KeyCode == Enum.KeyCode.K then
+		setAimbotEnabled(not aimbotEnabled)
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if aimbotEnabled then
+		if not currentTarget or not currentTarget:IsDescendantOf(workspace) or currentTarget.Parent:FindFirstChild("Humanoid") and currentTarget.Parent.Humanoid.Health <= 0 then
+			currentTarget = getTargetAtCenter()
+		end
+		if currentTarget then
+			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
+		end
+	end
+end)
+
+local function removeToolDelays(tool)
+	if tool:IsA("Tool") then
+		local oldConnections = getconnections(tool.Activated)
+		for _, conn in pairs(oldConnections) do
+			conn:Disable()
+		end
+
+		tool.Activated:Connect(function()
+			local handle = tool:FindFirstChild("Handle")
+			if handle then
+				local sound = handle:FindFirstChildOfClass("Sound")
+				if sound then
+					sound:Play()
+				end
+			end
+
+			local remote = tool:FindFirstChildWhichIsA("RemoteEvent", true)
+			if remote then
+				remote:FireServer()
+			end
+		end)
+	end
+end
+
+for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
+	removeToolDelays(tool)
+end
+
+localPlayer.Backpack.ChildAdded:Connect(removeToolDelays)
