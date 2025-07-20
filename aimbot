@@ -10,22 +10,50 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 150)
+frame.Position = UDim2.new(0, 10, 0, 80)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.Parent = frame
+
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(0, 220, 0, 40)
-toggleButton.Position = UDim2.new(0, 20, 0, 100)
+toggleButton.Position = UDim2.new(0, 20, 0, 20)
 toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.TextSize = 14
 toggleButton.Font = Enum.Font.SourceSansBold
 toggleButton.Text = "Aimbot: OFF (Keybind: K)"
 toggleButton.AutoButtonColor = false
-toggleButton.Parent = screenGui
+toggleButton.Parent = frame
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = toggleButton
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 12)
+toggleCorner.Parent = toggleButton
+
+local teamButton = Instance.new("TextButton")
+teamButton.Size = UDim2.new(0, 220, 0, 40)
+teamButton.Position = UDim2.new(0, 20, 0, 80)
+teamButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+teamButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+teamButton.TextSize = 14
+teamButton.Font = Enum.Font.SourceSansBold
+teamButton.Text = "Team Check: OFF (Keybind: J)"
+teamButton.AutoButtonColor = false
+teamButton.Parent = frame
+
+local teamCorner = Instance.new("UICorner")
+teamCorner.CornerRadius = UDim.new(0, 12)
+teamCorner.Parent = teamButton
 
 local aimbotEnabled = false
+local teamCheckEnabled = false
 local currentTarget = nil
 
 function getTargetAtCenter()
@@ -35,15 +63,17 @@ function getTargetAtCenter()
 
 	for _, player in pairs(Players:GetPlayers()) do
 		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("Head") then
-			local humanoid = player.Character:FindFirstChild("Humanoid")
-			if humanoid.Health > 0 then
-				local head = player.Character.Head
-				local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
-				if onScreen then
-					local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-					if dist < closestDist then
-						closestDist = dist
-						closestTarget = head
+			if not teamCheckEnabled or player.Team ~= localPlayer.Team then
+				local humanoid = player.Character:FindFirstChild("Humanoid")
+				if humanoid.Health > 0 then
+					local head = player.Character.Head
+					local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+					if onScreen then
+						local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+						if dist < closestDist then
+							closestDist = dist
+							closestTarget = head
+						end
 					end
 				end
 			end
@@ -59,33 +89,42 @@ local function setAimbotEnabled(state)
 	local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 	local goalColor = aimbotEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	TweenService:Create(toggleButton, tweenInfo, {BackgroundColor3 = goalColor}):Play()
-
 	currentTarget = aimbotEnabled and getTargetAtCenter() or nil
+end
+
+local function setTeamCheckEnabled(state)
+	teamCheckEnabled = state
+	teamButton.Text = teamCheckEnabled and "Team Check: ON (Keybind: J)" or "Team Check: OFF (Keybind: J)"
+	local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	local goalColor = teamCheckEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
+	TweenService:Create(teamButton, tweenInfo, {BackgroundColor3 = goalColor}):Play()
 end
 
 toggleButton.MouseButton1Click:Connect(function()
 	setAimbotEnabled(not aimbotEnabled)
 end)
 
-UserInputService.InputBegan:Connect(function(input, processed)
-	if not processed and input.KeyCode == Enum.KeyCode.K then
-		setAimbotEnabled(not aimbotEnabled)
+teamButton.MouseButton1Click:Connect(function()
+	setTeamCheckEnabled(not teamCheckEnabled)
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if not gameProcessed then
+		if input.KeyCode == Enum.KeyCode.K then
+			setAimbotEnabled(not aimbotEnabled)
+		elseif input.KeyCode == Enum.KeyCode.J then
+			setTeamCheckEnabled(not teamCheckEnabled)
+		end
 	end
 end)
 
-local function isTargetValid(target)
-	return target
-		and target:IsDescendantOf(workspace)
-		and target.Parent:FindFirstChild("Humanoid")
-		and target.Parent.Humanoid.Health > 0
-end
-
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
-		if not isTargetValid(currentTarget) then
+		if not currentTarget or not currentTarget:IsDescendantOf(workspace) or currentTarget.Parent:FindFirstChild("Humanoid").Health <= 0 then
 			currentTarget = getTargetAtCenter()
 		end
-		if isTargetValid(currentTarget) then
+
+		if currentTarget then
 			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
 		end
 	end
