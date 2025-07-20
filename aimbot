@@ -11,7 +11,7 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 180, 0, 40)
+toggleButton.Size = UDim2.new(0, 200, 0, 40)
 toggleButton.Position = UDim2.new(0, 20, 0, 100)
 toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -33,11 +33,11 @@ function getTargetAtCenter()
 	local closestDist = math.huge
 	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 
-	for _, model in pairs(workspace:GetDescendants()) do
-		if model:IsA("Model") and model ~= localPlayer.Character and model:FindFirstChild("Humanoid") and model:FindFirstChild("Head") then
-			local humanoid = model:FindFirstChild("Humanoid")
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("Head") then
+			local humanoid = player.Character:FindFirstChild("Humanoid")
 			if humanoid.Health > 0 then
-				local head = model.Head
+				local head = player.Character.Head
 				local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
 				if onScreen then
 					local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
@@ -73,13 +73,39 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
+local function isTargetValid(target)
+	return target
+		and target:IsDescendantOf(workspace)
+		and target.Parent:FindFirstChild("Humanoid")
+		and target.Parent.Humanoid.Health > 0
+end
+
+local function autoShoot()
+	local char = localPlayer.Character
+	if not char then return end
+
+	local tool = char:FindFirstChildOfClass("Tool")
+	if tool and isTargetValid(currentTarget) then
+		local remote = tool:FindFirstChildWhichIsA("RemoteEvent", true)
+		if remote then
+			remote:FireServer()
+		elseif tool:FindFirstChild("Handle") then
+			local handle = tool.Handle
+			local sound = handle:FindFirstChildOfClass("Sound")
+			if sound then sound:Play() end
+			tool:Activate()
+		end
+	end
+end
+
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
-		if not currentTarget or not currentTarget:IsDescendantOf(workspace) or currentTarget.Parent:FindFirstChild("Humanoid") and currentTarget.Parent.Humanoid.Health <= 0 then
+		if not isTargetValid(currentTarget) then
 			currentTarget = getTargetAtCenter()
 		end
-		if currentTarget then
+		if isTargetValid(currentTarget) then
 			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
+			autoShoot()
 		end
 	end
 end)
