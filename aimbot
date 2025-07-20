@@ -87,37 +87,6 @@ RunService.RenderStepped:Connect(function()
 		end
 		if isTargetValid(currentTarget) then
 			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
-			-- Không tự bắn nữa
 		end
 	end
 end)
-
-local function removeToolDelays(tool)
-	if tool:IsA("Tool") then
-		local oldConnections = getconnections(tool.Activated)
-		for _, conn in pairs(oldConnections) do
-			conn:Disable()
-		end
-
-		tool.Activated:Connect(function()
-			local handle = tool:FindFirstChild("Handle")
-			if handle then
-				local sound = handle:FindFirstChildOfClass("Sound")
-				if sound then
-					sound:Play()
-				end
-			end
-
-			local remote = tool:FindFirstChildWhichIsA("RemoteEvent", true)
-			if remote then
-				remote:FireServer()
-			end
-		end)
-	end
-end
-
-for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
-	removeToolDelays(tool)
-end
-
-localPlayer.Backpack.ChildAdded:Connect(removeToolDelays)
