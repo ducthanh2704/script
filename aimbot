@@ -11,7 +11,7 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 200, 0, 40)
+toggleButton.Size = UDim2.new(0, 220, 0, 40)
 toggleButton.Position = UDim2.new(0, 20, 0, 100)
 toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -80,24 +80,6 @@ local function isTargetValid(target)
 		and target.Parent.Humanoid.Health > 0
 end
 
-local function autoShoot()
-	local char = localPlayer.Character
-	if not char then return end
-
-	local tool = char:FindFirstChildOfClass("Tool")
-	if tool and isTargetValid(currentTarget) then
-		local remote = tool:FindFirstChildWhichIsA("RemoteEvent", true)
-		if remote then
-			remote:FireServer()
-		elseif tool:FindFirstChild("Handle") then
-			local handle = tool.Handle
-			local sound = handle:FindFirstChildOfClass("Sound")
-			if sound then sound:Play() end
-			tool:Activate()
-		end
-	end
-end
-
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
 		if not isTargetValid(currentTarget) then
@@ -105,7 +87,7 @@ RunService.RenderStepped:Connect(function()
 		end
 		if isTargetValid(currentTarget) then
 			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
-			autoShoot()
+			-- Không tự bắn nữa
 		end
 	end
 end)
