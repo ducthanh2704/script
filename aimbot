@@ -30,7 +30,7 @@ toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.TextSize = 13
 toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.Text = "Aimbot: OFF (K)"
+toggleButton.Text = "Aimbot: OFF (R)"
 toggleButton.AutoButtonColor = false
 toggleButton.Parent = frame
 
@@ -45,7 +45,7 @@ teamButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 teamButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 teamButton.TextSize = 13
 teamButton.Font = Enum.Font.SourceSansBold
-teamButton.Text = "Team Check: OFF (J)"
+teamButton.Text = "Team Check: OFF (G)"
 teamButton.AutoButtonColor = false
 teamButton.Parent = frame
 
