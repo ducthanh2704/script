@@ -52,34 +52,51 @@ local teamCorner = Instance.new("UICorner")
 teamCorner.CornerRadius = UDim.new(0, 12)
 teamCorner.Parent = teamButton
 
+local noticeLabel = Instance.new("TextLabel")
+noticeLabel.Size = UDim2.new(0, 260, 0, 25)
+noticeLabel.Position = UDim2.new(0, 10, 0, 240)
+noticeLabel.BackgroundTransparency = 1
+noticeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+noticeLabel.TextSize = 14
+noticeLabel.Font = Enum.Font.SourceSansBold
+noticeLabel.Text = ""
+noticeLabel.Parent = screenGui
+
 local aimbotEnabled = false
 local teamCheckEnabled = false
 local currentTarget = nil
 
-function getTargetAtCenter()
+local function showNotice(text, duration)
+	noticeLabel.Text = text
+	task.delay(duration or 2, function()
+		if noticeLabel.Text == text then
+			noticeLabel.Text = ""
+		end
+	end)
+end
+
+local function getTargetAtCenter()
 	local closestTarget = nil
 	local closestDist = math.huge
 	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-
 	for _, player in pairs(Players:GetPlayers()) do
 		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("Head") then
 			if not teamCheckEnabled or player.Team ~= localPlayer.Team then
 				local humanoid = player.Character:FindFirstChild("Humanoid")
-				if humanoid.Health > 0 then
+				if humanoid and humanoid.Health > 0 then
 					local head = player.Character.Head
 					local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
 					if onScreen then
 						local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
 						if dist < closestDist then
 							closestDist = dist
-							closestTarget = head
+							closestTarget = player
 						end
 					end
 				end
 			end
 		end
 	end
-
 	return closestTarget
 end
 
@@ -89,7 +106,11 @@ local function setAimbotEnabled(state)
 	local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 	local goalColor = aimbotEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	TweenService:Create(toggleButton, tweenInfo, {BackgroundColor3 = goalColor}):Play()
-	currentTarget = aimbotEnabled and getTargetAtCenter() or nil
+	if aimbotEnabled then
+		currentTarget = getTargetAtCenter()
+	else
+		currentTarget = nil
+	end
 end
 
 local function setTeamCheckEnabled(state)
@@ -119,13 +140,14 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 RunService.RenderStepped:Connect(function()
-	if aimbotEnabled then
-		if not currentTarget or not currentTarget:IsDescendantOf(workspace) or currentTarget.Parent:FindFirstChild("Humanoid").Health <= 0 then
-			currentTarget = getTargetAtCenter()
-		end
-
-		if currentTarget then
-			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
+	if aimbotEnabled and currentTarget and currentTarget.Character then
+		local humanoid = currentTarget.Character:FindFirstChild("Humanoid")
+		local head = currentTarget.Character:FindFirstChild("Head")
+		if humanoid and head and humanoid.Health > 0 then
+			camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
+		else
+			setAimbotEnabled(false)
+			showNotice("Turned off Aimbot")
 		end
 	end
 end)
