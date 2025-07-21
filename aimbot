@@ -45,7 +45,7 @@ teamButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 teamButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 teamButton.TextSize = 13
 teamButton.Font = Enum.Font.SourceSansBold
-teamButton.Text = "Team Check: OFF (G)"
+teamButton.Text = "Team Check: OFF (H)"
 teamButton.AutoButtonColor = false
 teamButton.Parent = frame
 
@@ -88,15 +88,20 @@ local function getTargetAtCenter()
 				local humanoid = player.Character.Humanoid
 				if humanoid.Health > 0 then
 					local head = player.Character.Head
-					local rayParams = RaycastParams.new()
-					rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-					rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
-					local result = workspace:Raycast(camPos, (head.Position - camPos), rayParams)
-					if not result or (result and result.Instance:IsDescendantOf(player.Character)) then
-						local dist = (camPos - head.Position).Magnitude
-						if dist < closestDist then
-							closestDist = dist
-							closestTarget = player
+					local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+
+					if screenPos.Z > 0 then
+						local rayParams = RaycastParams.new()
+						rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+						rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
+						local result = workspace:Raycast(camPos, (head.Position - camPos), rayParams)
+
+						if not result or (result and result.Instance:IsDescendantOf(player.Character)) then
+							local dist = (camPos - head.Position).Magnitude
+							if dist < closestDist then
+								closestDist = dist
+								closestTarget = player
+							end
 						end
 					end
 				end
@@ -117,7 +122,7 @@ end
 
 local function setTeamCheckEnabled(state)
 	teamCheckEnabled = state
-	teamButton.Text = teamCheckEnabled and "Team Check: ON (G)" or "Team Check: OFF (G)"
+	teamButton.Text = teamCheckEnabled and "Team Check: ON (H)" or "Team Check: OFF (H)"
 	TweenService:Create(teamButton, TweenInfo.new(0.15), {
 		BackgroundColor3 = teamCheckEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	}):Play()
@@ -135,7 +140,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if not gameProcessed then
 		if input.KeyCode == Enum.KeyCode.R then
 			setAimbotEnabled(not aimbotEnabled)
-		elseif input.KeyCode == Enum.KeyCode.G then
+		elseif input.KeyCode == Enum.KeyCode.H then
 			setTeamCheckEnabled(not teamCheckEnabled)
 		end
 	end
