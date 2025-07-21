@@ -12,7 +12,7 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 150)
+frame.Size = UDim2.new(0, 200, 0, 120)
 frame.Position = UDim2.new(0, 10, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.Active = true
@@ -24,13 +24,13 @@ frameCorner.CornerRadius = UDim.new(0, 12)
 frameCorner.Parent = frame
 
 local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 220, 0, 40)
-toggleButton.Position = UDim2.new(0, 20, 0, 20)
+toggleButton.Size = UDim2.new(0, 180, 0, 35)
+toggleButton.Position = UDim2.new(0, 10, 0, 15)
 toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextSize = 14
+toggleButton.TextSize = 13
 toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.Text = "Aimbot: OFF (Keybind: K)"
+toggleButton.Text = "Aimbot: OFF (K)"
 toggleButton.AutoButtonColor = false
 toggleButton.Parent = frame
 
@@ -39,13 +39,13 @@ toggleCorner.CornerRadius = UDim.new(0, 12)
 toggleCorner.Parent = toggleButton
 
 local teamButton = Instance.new("TextButton")
-teamButton.Size = UDim2.new(0, 220, 0, 40)
-teamButton.Position = UDim2.new(0, 20, 0, 80)
+teamButton.Size = UDim2.new(0, 180, 0, 35)
+teamButton.Position = UDim2.new(0, 10, 0, 65)
 teamButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 teamButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-teamButton.TextSize = 14
+teamButton.TextSize = 13
 teamButton.Font = Enum.Font.SourceSansBold
-teamButton.Text = "Team Check: OFF (Keybind: J)"
+teamButton.Text = "Team Check: OFF (J)"
 teamButton.AutoButtonColor = false
 teamButton.Parent = frame
 
@@ -54,8 +54,8 @@ teamCorner.CornerRadius = UDim.new(0, 12)
 teamCorner.Parent = teamButton
 
 local noticeLabel = Instance.new("TextLabel")
-noticeLabel.Size = UDim2.new(0, 260, 0, 25)
-noticeLabel.Position = UDim2.new(0, 10, 0, 240)
+noticeLabel.Size = UDim2.new(0, 200, 0, 25)
+noticeLabel.Position = UDim2.new(0, 10, 0, 210)
 noticeLabel.BackgroundTransparency = 1
 noticeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 noticeLabel.TextSize = 14
@@ -80,15 +80,20 @@ end
 local function getTargetAtCenter()
 	local closestTarget = nil
 	local closestDist = math.huge
-	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+	local camPos = camera.CFrame.Position
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") then
 			if not teamCheckEnabled or player.Team ~= localPlayer.Team then
 				local humanoid = player.Character.Humanoid
 				if humanoid.Health > 0 then
-					local screenPos, onScreen = camera:WorldToViewportPoint(player.Character.Head.Position)
-					if onScreen then
-						local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+					local head = player.Character.Head
+					local rayParams = RaycastParams.new()
+					rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+					rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
+					local result = workspace:Raycast(camPos, (head.Position - camPos), rayParams)
+					if not result or (result and result.Instance:IsDescendantOf(player.Character)) then
+						local dist = (camPos - head.Position).Magnitude
 						if dist < closestDist then
 							closestDist = dist
 							closestTarget = player
@@ -103,7 +108,7 @@ end
 
 local function setAimbotEnabled(state)
 	aimbotEnabled = state
-	toggleButton.Text = aimbotEnabled and "Aimbot: ON (Keybind: K)" or "Aimbot: OFF (Keybind: K)"
+	toggleButton.Text = aimbotEnabled and "Aimbot: ON (K)" or "Aimbot: OFF (K)"
 	TweenService:Create(toggleButton, TweenInfo.new(0.15), {
 		BackgroundColor3 = aimbotEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	}):Play()
@@ -112,7 +117,7 @@ end
 
 local function setTeamCheckEnabled(state)
 	teamCheckEnabled = state
-	teamButton.Text = teamCheckEnabled and "Team Check: ON (Keybind: J)" or "Team Check: OFF (Keybind: J)"
+	teamButton.Text = teamCheckEnabled and "Team Check: ON (J)" or "Team Check: OFF (J)"
 	TweenService:Create(teamButton, TweenInfo.new(0.15), {
 		BackgroundColor3 = teamCheckEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	}):Play()
