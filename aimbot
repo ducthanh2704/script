@@ -108,7 +108,7 @@ end
 
 local function setAimbotEnabled(state)
 	aimbotEnabled = state
-	toggleButton.Text = aimbotEnabled and "Aimbot: ON (K)" or "Aimbot: OFF (K)"
+	toggleButton.Text = aimbotEnabled and "Aimbot: ON (R)" or "Aimbot: OFF (R)"
 	TweenService:Create(toggleButton, TweenInfo.new(0.15), {
 		BackgroundColor3 = aimbotEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	}):Play()
@@ -117,7 +117,7 @@ end
 
 local function setTeamCheckEnabled(state)
 	teamCheckEnabled = state
-	teamButton.Text = teamCheckEnabled and "Team Check: ON (J)" or "Team Check: OFF (J)"
+	teamButton.Text = teamCheckEnabled and "Team Check: ON (G)" or "Team Check: OFF (G)"
 	TweenService:Create(teamButton, TweenInfo.new(0.15), {
 		BackgroundColor3 = teamCheckEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	}):Play()
@@ -133,9 +133,9 @@ end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if not gameProcessed then
-		if input.KeyCode == Enum.KeyCode.K then
+		if input.KeyCode == Enum.KeyCode.R then
 			setAimbotEnabled(not aimbotEnabled)
-		elseif input.KeyCode == Enum.KeyCode.J then
+		elseif input.KeyCode == Enum.KeyCode.G then
 			setTeamCheckEnabled(not teamCheckEnabled)
 		end
 	end
