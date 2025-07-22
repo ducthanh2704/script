@@ -9,10 +9,14 @@ end
 
 local function createESP(player)
 	if player == LocalPlayer then return end
-	local char = player.Character
-	if not char then return end
-	local head = char:FindFirstChild("Head")
+	local character = player.Character
+	if not character then return end
+	local head = character:FindFirstChild("Head")
 	if not head then return end
+
+	if espList[player] then
+		espList[player].gui:Destroy()
+	end
 
 	local gui = Instance.new("BillboardGui")
 	gui.AlwaysOnTop = true
@@ -29,7 +33,7 @@ local function createESP(player)
 	displayLabel.TextScaled = true
 	displayLabel.Font = Enum.Font.GothamBold
 	displayLabel.TextStrokeTransparency = 0.2
-	displayLabel.TextColor3 = Color3.new(1, 1, 1)
+	displayLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	displayLabel.Parent = gui
 
 	local userLabel = Instance.new("TextLabel")
@@ -41,7 +45,7 @@ local function createESP(player)
 	userLabel.TextScaled = true
 	userLabel.Font = Enum.Font.Gotham
 	userLabel.TextStrokeTransparency = 0.4
-	userLabel.TextColor3 = Color3.new(1, 1, 1)
+	userLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	userLabel.Parent = gui
 
 	gui.Parent = head
@@ -50,16 +54,17 @@ local function createESP(player)
 		gui = gui,
 		display = displayLabel,
 		username = userLabel,
-		char = char
+		char = character
 	}
 end
 
 local function removeESP(player)
-	local esp = espList[player]
-	if esp and esp.gui then
-		esp.gui:Destroy()
+	if espList[player] then
+		if espList[player].gui then
+			espList[player].gui:Destroy()
+		end
+		espList[player] = nil
 	end
-	espList[player] = nil
 end
 
 RunService.RenderStepped:Connect(function()
@@ -76,11 +81,13 @@ RunService.RenderStepped:Connect(function()
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
-	createESP(player)
 	player.CharacterAdded:Connect(function()
 		wait(1)
 		createESP(player)
 	end)
+	if player.Character then
+		createESP(player)
+	end
 end
 
 Players.PlayerAdded:Connect(function(player)
