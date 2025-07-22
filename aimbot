@@ -42,7 +42,7 @@ Instance.new("UICorner", teamButton).CornerRadius = UDim.new(0, 8)
 local aimbotEnabled = false
 local teamCheck = false
 local currentTarget = nil
-local aimSpeed = 0.2
+local aimSpeed = 0.25
 local FOV = 150
 
 local circle = Drawing.new("Circle")
@@ -54,7 +54,7 @@ circle.Filled = false
 circle.Visible = false
 
 local function getTargetPart(character)
-	return character:FindFirstChild("Head") or character:FindFirstChild("Neck")
+	return character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
 end
 
 local function isVisible(part)
@@ -65,18 +65,18 @@ local function isVisible(part)
 	rayParams.IgnoreWater = true
 
 	local direction = (part.Position - origin)
-	local ray = workspace:Raycast(origin, direction, rayParams)
-	return not ray or ray.Instance:IsDescendantOf(part.Parent)
+	local result = workspace:Raycast(origin, direction, rayParams)
+	return not result or result.Instance:IsDescendantOf(part.Parent)
 end
 
 local function getTarget()
 	local closest = nil
 	local minDist = math.huge
 	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("Humanoid").Health > 0 then
 			if not teamCheck or player.Team ~= localPlayer.Team then
 				local part = getTargetPart(player.Character)
-				if part then
+				if part and isVisible(part) then
 					local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
 					if onScreen then
 						local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)).Magnitude
@@ -100,13 +100,13 @@ local function setAimbot(state)
 	TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundColor3 = goalColor}):Play()
 
 	if state then
-		currentTarget = getTarget()
-		UserInputService.MouseIconEnabled = false
+		UserInputService.MouseIconEnabled = true
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+		currentTarget = getTarget()
 	else
-		currentTarget = nil
 		UserInputService.MouseIconEnabled = true
 		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		currentTarget = nil
 	end
 end
 
@@ -137,33 +137,12 @@ end)
 RunService.RenderStepped:Connect(function(dt)
 	circle.Position = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
 	if aimbotEnabled then
-		if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Humanoid") and currentTarget.Character.Humanoid.Health > 0 then
+		if currentTarget and currentTarget.Character then
 			local part = getTargetPart(currentTarget.Character)
-			if part then
+			if part and isVisible(part) then
 				local goal = CFrame.new(camera.CFrame.Position, part.Position)
 				camera.CFrame = camera.CFrame:Lerp(goal, aimSpeed * dt * 60)
 			end
-		else
-			currentTarget = getTarget()
 		end
 	end
-end)
-
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-	local method = getnamecallmethod()
-	local args = { ... }
-	if aimbotEnabled and currentTarget and currentTarget.Character then
-		local part = getTargetPart(currentTarget.Character)
-		if part then
-			if method == "FindPartOnRayWithIgnoreList" and typeof(args[1]) == "Ray" then
-				args[1] = Ray.new(camera.CFrame.Position, (part.Position - camera.CFrame.Position).Unit * 1000)
-				return oldNamecall(self, unpack(args))
-			elseif method == "Raycast" and typeof(args[2]) == "Vector3" then
-				args[2] = (part.Position - args[1]).Unit * 1000
-				return oldNamecall(self, unpack(args))
-			end
-		end
-	end
-	return oldNamecall(self, ...)
 end)
