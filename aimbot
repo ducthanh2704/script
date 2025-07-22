@@ -80,6 +80,7 @@ local function setAimbot(state)
 	toggleButton.Text = state and "Aimbot: ON (T)" or "Aimbot: OFF (T)"
 	local goalColor = state and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundColor3 = goalColor}):Play()
+	if not state then currentTarget = nil end
 end
 
 local function setTeamCheck(state)
@@ -108,10 +109,27 @@ end)
 
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
-		local target = getTarget()
-		if target and target.Character and target.Character:FindFirstChild("Head") then
-			currentTarget = target
-			camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
+		if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Head") then
+			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Character.Head.Position)
+		else
+			local newTarget = getTarget()
+			if newTarget then
+				currentTarget = newTarget
+			end
 		end
 	end
+end)
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+	local method = getnamecallmethod()
+	local args = { ... }
+	if aimbotEnabled and currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Head") then
+		if method == "FindPartOnRayWithIgnoreList" or method == "Raycast" then
+			local head = currentTarget.Character.Head
+			args[1] = Ray.new(camera.CFrame.Position, (head.Position - camera.CFrame.Position).Unit * 1000)
+			return oldNamecall(self, unpack(args))
+		end
+	end
+	return oldNamecall(self, ...)
 end)
