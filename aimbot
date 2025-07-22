@@ -5,87 +5,104 @@ local UserInputService = game:GetService("UserInputService")
 local camera = workspace.CurrentCamera
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
-local mouse = localPlayer:GetMouse()
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 120)
-frame.Position = UDim2.new(0, 10, 0, 80)
+frame.Size = UDim2.new(0, 200, 0, 100)
+frame.Position = UDim2.new(0, 10, 0, 60)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.Active = true
 frame.Draggable = true
 frame.Parent = screenGui
 
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.CornerRadius = UDim.new(0, 10)
 frameCorner.Parent = frame
 
 local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 170, 0, 32)
-toggleButton.Position = UDim2.new(0, 15, 0, 15)
+toggleButton.Size = UDim2.new(0, 180, 0, 30)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
 toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextSize = 12
+toggleButton.TextSize = 13
 toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.Text = "Aimbot: OFF (Keybind: T)"
+toggleButton.Text = "Aimbot: OFF (T)"
 toggleButton.AutoButtonColor = false
 toggleButton.Parent = frame
 
 local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 10)
+toggleCorner.CornerRadius = UDim.new(0, 8)
 toggleCorner.Parent = toggleButton
 
 local teamButton = Instance.new("TextButton")
-teamButton.Size = UDim2.new(0, 170, 0, 32)
-teamButton.Position = UDim2.new(0, 15, 0, 65)
+teamButton.Size = UDim2.new(0, 180, 0, 30)
+teamButton.Position = UDim2.new(0, 10, 0, 50)
 teamButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 teamButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-teamButton.TextSize = 12
+teamButton.TextSize = 13
 teamButton.Font = Enum.Font.SourceSansBold
-teamButton.Text = "Team Check: OFF (Keybind: H)"
+teamButton.Text = "Team Check: OFF (H)"
 teamButton.AutoButtonColor = false
 teamButton.Parent = frame
 
 local teamCorner = Instance.new("UICorner")
-teamCorner.CornerRadius = UDim.new(0, 10)
+teamCorner.CornerRadius = UDim.new(0, 8)
 teamCorner.Parent = teamButton
+
+local noticeLabel = Instance.new("TextLabel")
+noticeLabel.Size = UDim2.new(0, 200, 0, 20)
+noticeLabel.Position = UDim2.new(0, 10, 0, 160)
+noticeLabel.BackgroundTransparency = 1
+noticeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+noticeLabel.TextSize = 12
+noticeLabel.Font = Enum.Font.SourceSansBold
+noticeLabel.Text = ""
+noticeLabel.Parent = screenGui
 
 local aimbotEnabled = false
 local teamCheckEnabled = false
 local currentTarget = nil
-local prediction = 0.165
+local prediction = 0.09
 
-local function isVisible(target)
-	local origin = camera.CFrame.Position
-	local direction = (target.Position - origin).Unit * 500
-	local ray = RaycastParams.new()
-	ray.FilterType = Enum.RaycastFilterType.Blacklist
-	ray.FilterDescendantsInstances = {localPlayer.Character}
-	local result = workspace:Raycast(origin, direction, ray)
-	if result and result.Instance and not target:IsDescendantOf(result.Instance) then
-		return false
-	end
-	return true
+local function showNotice(text, duration)
+	noticeLabel.Text = text
+	task.delay(duration or 2, function()
+		if noticeLabel.Text == text then
+			noticeLabel.Text = ""
+		end
+	end)
 end
 
-local function getClosestTarget()
+local function getTargetAtCenter()
 	local closestTarget = nil
-	local closestDist = math.huge
-	local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+	local closestDistance = math.huge
+	local camPos = camera.CFrame.Position
+	local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
 	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") then
+		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
 			if not teamCheckEnabled or player.Team ~= localPlayer.Team then
-				if player.Character.Humanoid.Health > 0 then
-					local head = player.Character.Head
-					local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
-					if onScreen and isVisible(head) then
-						local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-						if dist < closestDist then
-							closestDist = dist
-							closestTarget = player
+				local humanoid = player.Character.Humanoid
+				if humanoid.Health > 0 then
+					local part = player.Character.HumanoidRootPart
+					local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+					if onScreen and screenPos.Z > 0 then
+						local screenPoint = Vector2.new(screenPos.X, screenPos.Y)
+						local distToCenter = (screenPoint - screenCenter).Magnitude
+
+						local rayParams = RaycastParams.new()
+						rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+						rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
+						local result = workspace:Raycast(camPos, (part.Position - camPos), rayParams)
+
+						if not result or (result and result.Instance:IsDescendantOf(player.Character)) then
+							if distToCenter < closestDistance then
+								closestDistance = distToCenter
+								closestTarget = player
+							end
 						end
 					end
 				end
@@ -97,16 +114,16 @@ end
 
 local function setAimbotEnabled(state)
 	aimbotEnabled = state
-	toggleButton.Text = aimbotEnabled and "Aimbot: ON (Keybind: T)" or "Aimbot: OFF (Keybind: T)"
+	toggleButton.Text = aimbotEnabled and "Aimbot: ON (T)" or "Aimbot: OFF (T)"
 	TweenService:Create(toggleButton, TweenInfo.new(0.15), {
 		BackgroundColor3 = aimbotEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	}):Play()
-	currentTarget = aimbotEnabled and getClosestTarget() or nil
+	currentTarget = aimbotEnabled and getTargetAtCenter() or nil
 end
 
 local function setTeamCheckEnabled(state)
 	teamCheckEnabled = state
-	teamButton.Text = teamCheckEnabled and "Team Check: ON (Keybind: H)" or "Team Check: OFF (Keybind: H)"
+	teamButton.Text = teamCheckEnabled and "Team Check: ON (H)" or "Team Check: OFF (H)"
 	TweenService:Create(teamButton, TweenInfo.new(0.15), {
 		BackgroundColor3 = teamCheckEnabled and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	}):Play()
@@ -132,16 +149,18 @@ end)
 
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
-		if not currentTarget or not currentTarget.Character or not currentTarget.Character:FindFirstChild("Head") or currentTarget.Character:FindFirstChild("Humanoid").Health <= 0 then
-			currentTarget = getClosestTarget()
+		if not currentTarget or not currentTarget.Character or not currentTarget.Character:FindFirstChild("HumanoidRootPart") or currentTarget.Character:FindFirstChild("Humanoid").Health <= 0 then
+			currentTarget = getTargetAtCenter()
+			if not currentTarget then
+				setAimbotEnabled(false)
+				showNotice("Turned off Aimbot", 2)
+				return
+			end
 		end
-		if currentTarget then
-			local head = currentTarget.Character.Head
-			local velocity = head.Velocity
-			local offsetDir = (head.Position - camera.CFrame.Position).Unit
-			local predicted = head.Position + (velocity * prediction) + (offsetDir * 0.3)
-			camera.CFrame = CFrame.lookAt(camera.CFrame.Position, predicted)
-		end
+		local part = currentTarget.Character.HumanoidRootPart
+		local velocity = part.Velocity
+		local predictedPos = part.Position + (velocity * prediction)
+		camera.CFrame = CFrame.new(camera.CFrame.Position, predictedPos)
 	end
 end)
 
@@ -149,8 +168,8 @@ local __namecall
 __namecall = hookmetamethod(game, "__namecall", function(self, ...)
 	local method = getnamecallmethod()
 	local args = { ... }
-	if aimbotEnabled and tostring(self) == "HitPart" and method == "FireServer" and currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Head") then
-		args[1] = currentTarget.Character.Head
+	if aimbotEnabled and tostring(self) == "HitPart" and method == "FireServer" and currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart") then
+		args[1] = currentTarget.Character.HumanoidRootPart
 		return __namecall(self, unpack(args))
 	end
 	return __namecall(self, ...)
