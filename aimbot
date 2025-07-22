@@ -43,32 +43,13 @@ local aimbotEnabled = false
 local teamCheck = false
 local currentTarget = nil
 
-local function getVisiblePart(character)
-	local origin = camera.CFrame.Position
-	local bestPart = nil
-	local bestDistance = math.huge
-	for _, part in ipairs(character:GetDescendants()) do
-		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-			local dir = (part.Position - origin)
-			local rayParams = RaycastParams.new()
-			rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-			rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
-			rayParams.IgnoreWater = true
-
-			local ray = workspace:Raycast(origin, dir, rayParams)
-			if not ray or ray.Instance:IsDescendantOf(character) then
-				local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-				if onScreen then
-					local dist = (Vector2.new(screenPos.X, screenPos.Y) - camera.ViewportSize / 2).Magnitude
-					if dist < bestDistance then
-						bestDistance = dist
-						bestPart = part
-					end
-				end
-			end
-		end
+local function getTargetPart(character)
+	if character:FindFirstChild("Head") then
+		return character.Head
+	elseif character:FindFirstChild("Neck") then
+		return character.Neck
 	end
-	return bestPart
+	return nil
 end
 
 local function getTarget()
@@ -77,7 +58,7 @@ local function getTarget()
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
 			if not teamCheck or player.Team ~= localPlayer.Team then
-				local part = getVisiblePart(player.Character)
+				local part = getTargetPart(player.Character)
 				if part then
 					local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
 					if onScreen then
@@ -129,7 +110,7 @@ end)
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
 		if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Humanoid") and currentTarget.Character.Humanoid.Health > 0 then
-			local part = getVisiblePart(currentTarget.Character)
+			local part = getTargetPart(currentTarget.Character)
 			if part then
 				camera.CFrame = CFrame.new(camera.CFrame.Position, part.Position)
 			end
@@ -144,7 +125,7 @@ oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 	local args = {...}
 	local method = getnamecallmethod()
 	if aimbotEnabled and currentTarget and currentTarget.Character then
-		local part = getVisiblePart(currentTarget.Character)
+		local part = getTargetPart(currentTarget.Character)
 		if part then
 			if method == "Raycast" and typeof(args[1]) == "Vector3" and typeof(args[2]) == "Vector3" then
 				args[2] = (part.Position - args[1]).Unit * 1000
