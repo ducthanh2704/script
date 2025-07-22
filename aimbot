@@ -53,9 +53,6 @@ circle.Transparency = 0.5
 circle.Filled = false
 circle.Visible = false
 
-local originalCameraType = camera.CameraType
-local originalMouseBehavior = UserInputService.MouseBehavior
-
 local function getTargetPart(character)
 	return character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
 end
@@ -91,12 +88,8 @@ local function setAimbot(state)
 
 	if state then
 		currentTarget = getTarget()
-		camera.CameraType = Enum.CameraType.Scriptable
-		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 	else
 		currentTarget = nil
-		camera.CameraType = originalCameraType
-		UserInputService.MouseBehavior = originalMouseBehavior
 	end
 end
 
