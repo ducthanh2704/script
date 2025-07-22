@@ -42,7 +42,7 @@ Instance.new("UICorner", teamButton).CornerRadius = UDim.new(0, 8)
 local aimbotEnabled = false
 local teamCheck = false
 local currentTarget = nil
-local aimSpeed = 0.2
+local aimSpeed = 0.25
 local FOV = 150
 
 local circle = Drawing.new("Circle")
@@ -51,20 +51,10 @@ circle.Thickness = 2
 circle.Color = Color3.new(0, 1, 0)
 circle.Transparency = 0.5
 circle.Filled = false
-circle.Visible = false -- Ban đầu ẩn
+circle.Visible = false
 
 local function getTargetPart(character)
 	return character:FindFirstChild("Head") or character:FindFirstChild("Neck")
-end
-
-local function isVisible(part)
-	local origin = camera.CFrame.Position
-	local rayParams = RaycastParams.new()
-	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-	rayParams.FilterDescendantsInstances = {localPlayer.Character, camera}
-	rayParams.IgnoreWater = true
-	local result = workspace:Raycast(origin, (part.Position - origin), rayParams)
-	return not result or result.Instance:IsDescendantOf(part.Parent)
 end
 
 local function getTarget()
@@ -73,7 +63,7 @@ local function getTarget()
 		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
 			if not teamCheck or player.Team ~= localPlayer.Team then
 				local part = getTargetPart(player.Character)
-				if part and isVisible(part) then
+				if part then
 					local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
 					if onScreen then
 						local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)).Magnitude
@@ -95,7 +85,12 @@ local function setAimbot(state)
 	toggleButton.Text = state and "Aimbot: ON (T)" or "Aimbot: OFF (T)"
 	local goalColor = state and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundColor3 = goalColor}):Play()
-	if not state then currentTarget = nil end
+
+	if not state then
+		currentTarget = nil
+	else
+		currentTarget = getTarget() -- Chỉ lấy 1 lần
+	end
 end
 
 local function setTeamCheck(state)
@@ -124,18 +119,14 @@ end)
 
 RunService.RenderStepped:Connect(function(dt)
 	circle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-	if aimbotEnabled then
-		if currentTarget and currentTarget.Character then
-			local part = getTargetPart(currentTarget.Character)
-			if part and isVisible(part) then
-				local direction = (part.Position - camera.CFrame.Position).Unit
-				local goal = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + direction)
-				camera.CFrame = camera.CFrame:Lerp(goal, aimSpeed * dt * 60)
-			else
-				currentTarget = nil
-			end
+	if aimbotEnabled and currentTarget and currentTarget.Character then
+		local part = getTargetPart(currentTarget.Character)
+		if part then
+			local direction = (part.Position - camera.CFrame.Position).Unit
+			local targetCFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + direction)
+			camera.CFrame = camera.CFrame:Lerp(targetCFrame, aimSpeed * dt * 60)
 		else
-			currentTarget = getTarget()
+			currentTarget = nil -- Nếu mất part (người chết hoặc lỗi nhân vật)
 		end
 	end
 end)
