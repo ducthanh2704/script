@@ -14,26 +14,42 @@ local function createESP(player)
 	local head = char:FindFirstChild("Head")
 	if not head then return end
 
-	local nameGui = Instance.new("BillboardGui")
-	nameGui.AlwaysOnTop = true
-	nameGui.Size = UDim2.new(0, 100, 0, 20)
-	nameGui.StudsOffset = Vector3.new(0, 2.5, 0)
-	nameGui.Adornee = head
+	local gui = Instance.new("BillboardGui")
+	gui.AlwaysOnTop = true
+	gui.Size = UDim2.new(0, 120, 0, 40)
+	gui.StudsOffset = Vector3.new(0, 2.5, 0)
+	gui.Adornee = head
 
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.Text = player.Name
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.TextStrokeTransparency = 0.2
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.Parent = nameGui
-	nameGui.Parent = head
+	local displayLabel = Instance.new("TextLabel")
+	displayLabel.Name = "Display"
+	displayLabel.BackgroundTransparency = 1
+	displayLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	displayLabel.Position = UDim2.new(0, 0, 0, 0)
+	displayLabel.Text = player.DisplayName
+	displayLabel.TextScaled = true
+	displayLabel.Font = Enum.Font.GothamBold
+	displayLabel.TextStrokeTransparency = 0.2
+	displayLabel.TextColor3 = Color3.new(1, 1, 1)
+	displayLabel.Parent = gui
+
+	local userLabel = Instance.new("TextLabel")
+	userLabel.Name = "Username"
+	userLabel.BackgroundTransparency = 1
+	userLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	userLabel.Position = UDim2.new(0, 0, 0.5, 0)
+	userLabel.Text = "@" .. player.Name
+	userLabel.TextScaled = true
+	userLabel.Font = Enum.Font.Gotham
+	userLabel.TextStrokeTransparency = 0.4
+	userLabel.TextColor3 = Color3.new(1, 1, 1)
+	userLabel.Parent = gui
+
+	gui.Parent = head
 
 	espList[player] = {
-		gui = nameGui,
-		text = label,
+		gui = gui,
+		display = displayLabel,
+		username = userLabel,
 		char = char
 	}
 end
@@ -50,7 +66,9 @@ RunService.RenderStepped:Connect(function()
 	local t = tick()
 	for player, esp in pairs(espList) do
 		if player and esp.char and esp.char.Parent then
-			esp.text.TextColor3 = getRainbowColor(t)
+			local color = getRainbowColor(t)
+			esp.display.TextColor3 = color
+			esp.username.TextColor3 = color
 		else
 			removeESP(player)
 		end
