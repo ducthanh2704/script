@@ -5,6 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local camera = workspace.CurrentCamera
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
+local mouse = localPlayer:GetMouse()
 
 local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.ResetOnSpawn = false
@@ -90,12 +91,30 @@ local function getTarget()
 	return closest
 end
 
+local function lockCursor(state)
+	if state then
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+		UserInputService.MouseIconEnabled = false
+	else
+		local inFirstPerson = (camera.Focus.Position - camera.CFrame.Position).Magnitude < 1
+		local holdingTool = localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Tool")
+		if inFirstPerson or holdingTool then
+			UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+			UserInputService.MouseIconEnabled = false
+		else
+			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+			UserInputService.MouseIconEnabled = true
+		end
+	end
+end
+
 local function setAimbot(state)
 	aimbotEnabled = state
 	toggleButton.Text = state and "Aimbot: ON (T)" or "Aimbot: OFF (T)"
 	local goalColor = state and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
 	TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundColor3 = goalColor}):Play()
 	circle.Visible = state
+	lockCursor(state)
 	if not state then currentTarget = nil end
 end
 
