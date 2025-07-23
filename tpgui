@@ -1,0 +1,104 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+
+local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+gui.Name = "TPGui"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 220, 0, 130)
+frame.Position = UDim2.new(0, 100, 0, 100)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.Active = true
+frame.Draggable = true
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel", frame)
+title.Text = "TP to Player"
+title.Size = UDim2.new(1, 0, 0, 25)
+title.Position = UDim2.new(0, 0, 0, 4)
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.TextYAlignment = Enum.TextYAlignment.Top
+
+local input = Instance.new("TextBox", frame)
+input.Text = ""
+input.PlaceholderText = "Username (K)"
+input.Size = UDim2.new(0.9, 0, 0, 35)
+input.Position = UDim2.new(0.05, 0, 0, 34)
+input.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+input.TextColor3 = Color3.new(1, 1, 1)
+input.PlaceholderColor3 = Color3.fromRGB(170, 170, 170)
+input.Font = Enum.Font.Gotham
+input.TextSize = 14
+input.ClearTextOnFocus = false
+
+local inputCorner = Instance.new("UICorner", input)
+inputCorner.CornerRadius = UDim.new(0, 8)
+
+local tpButton = Instance.new("TextButton", frame)
+tpButton.Text = "TP (L)"
+tpButton.Size = UDim2.new(0.9, 0, 0, 28)
+tpButton.Position = UDim2.new(0.05, 0, 1, -38)
+tpButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+tpButton.TextColor3 = Color3.new(1, 1, 1)
+tpButton.Font = Enum.Font.GothamBold
+tpButton.TextSize = 16
+
+local tpCorner = Instance.new("UICorner", tpButton)
+tpCorner.CornerRadius = UDim.new(0, 8)
+
+local function fuzzyFindPlayer(nameInput)
+	local lowerInput = nameInput:lower()
+	local bestMatch = nil
+	local shortestLength = math.huge
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			local uname = player.Name:lower()
+			local dname = player.DisplayName:lower()
+
+			if uname:find(lowerInput) or dname:find(lowerInput) then
+				local matchLength = math.min(#uname, #dname)
+				if matchLength < shortestLength then
+					bestMatch = player
+					shortestLength = matchLength
+				end
+			end
+		end
+	end
+
+	return bestMatch
+end
+
+local function teleportToPlayer(nameInput)
+	if nameInput == "" then return end
+	local targetPlayer = fuzzyFindPlayer(nameInput)
+	if targetPlayer and targetPlayer.Character or targetPlayer.CharacterAdded:Wait() then
+		local hrp = targetPlayer.Character:WaitForChild("HumanoidRootPart", 5)
+		local myChar = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+		local myHRP = myChar:WaitForChild("HumanoidRootPart", 5)
+
+		if hrp and myHRP then
+			myHRP.CFrame = hrp.CFrame + Vector3.new(2, 0, 2)
+		end
+	end
+end
+
+tpButton.MouseButton1Click:Connect(function()
+	teleportToPlayer(input.Text)
+end)
+
+UserInputService.InputBegan:Connect(function(inputKey, gpe)
+	if gpe then return end
+	if inputKey.KeyCode == Enum.KeyCode.L then
+		teleportToPlayer(input.Text)
+	elseif inputKey.KeyCode == Enum.KeyCode.K then
+		input:CaptureFocus()
+	end
+end)
