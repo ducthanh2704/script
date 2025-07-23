@@ -7,57 +7,6 @@ local function getRainbowColor(t)
 	return Color3.fromHSV((t % 5) / 5, 1, 1)
 end
 
-local function createESP(player)
-	if player == LocalPlayer then return end
-	local character = player.Character
-	if not character then return end
-	local head = character:FindFirstChild("Head")
-	if not head then return end
-
-	if espList[player] then
-		espList[player].gui:Destroy()
-	end
-
-	local gui = Instance.new("BillboardGui")
-	gui.AlwaysOnTop = true
-	gui.Size = UDim2.new(0, 120, 0, 40)
-	gui.StudsOffset = Vector3.new(0, 2.5, 0)
-	gui.Adornee = head
-
-	local displayLabel = Instance.new("TextLabel")
-	displayLabel.Name = "Display"
-	displayLabel.BackgroundTransparency = 1
-	displayLabel.Size = UDim2.new(1, 0, 0.5, 0)
-	displayLabel.Position = UDim2.new(0, 0, 0, 0)
-	displayLabel.Text = player.DisplayName
-	displayLabel.TextScaled = true
-	displayLabel.Font = Enum.Font.GothamBold
-	displayLabel.TextStrokeTransparency = 0.2
-	displayLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	displayLabel.Parent = gui
-
-	local userLabel = Instance.new("TextLabel")
-	userLabel.Name = "Username"
-	userLabel.BackgroundTransparency = 1
-	userLabel.Size = UDim2.new(1, 0, 0.5, 0)
-	userLabel.Position = UDim2.new(0, 0, 0.5, 0)
-	userLabel.Text = "@" .. player.Name
-	userLabel.TextScaled = true
-	userLabel.Font = Enum.Font.Gotham
-	userLabel.TextStrokeTransparency = 0.4
-	userLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	userLabel.Parent = gui
-
-	gui.Parent = head
-
-	espList[player] = {
-		gui = gui,
-		display = displayLabel,
-		username = userLabel,
-		char = character
-	}
-end
-
 local function removeESP(player)
 	if espList[player] then
 		if espList[player].gui then
@@ -67,34 +16,111 @@ local function removeESP(player)
 	end
 end
 
-RunService.RenderStepped:Connect(function()
-	local t = tick()
-	for player, esp in pairs(espList) do
-		if player and esp.char and esp.char.Parent then
-			local color = getRainbowColor(t)
-			esp.display.TextColor3 = color
-			esp.username.TextColor3 = color
-		else
-			removeESP(player)
-		end
-	end
-end)
+local function findAdorneePart(char)
+	local head = char:FindFirstChild("Head")
+	if head and head:IsA("BasePart") then return head end
 
-for _, player in ipairs(Players:GetPlayers()) do
+	local upperTorso = char:FindFirstChild("UpperTorso")
+	if upperTorso and upperTorso:IsA("BasePart") then return upperTorso end
+
+	local rootPart = char:FindFirstChild("HumanoidRootPart")
+	if rootPart and rootPart:IsA("BasePart") then return rootPart end
+
+	return nil
+end
+
+local function tryCreateESP(player)
+	if player == LocalPlayer then return end
+	if not player.Character or not player.Character:IsDescendantOf(workspace) then return end
+
+	local char = player.Character
+	local function waitForParts()
+		for i = 1, 60 do
+			if not player.Character then return nil end
+			local part = findAdorneePart(char)
+			local humanoid = char:FindFirstChildOfClass("Humanoid")
+			if part and humanoid then
+				return part
+			end
+			task.wait(0.1)
+		end
+		return nil
+	end
+
+	local adorneePart = waitForParts()
+	if not adorneePart then return end
+
+	removeESP(player)
+
+	local gui = Instance.new("BillboardGui")
+	gui.AlwaysOnTop = true
+	gui.Size = UDim2.new(0, 120, 0, 40)
+	gui.StudsOffset = Vector3.new(0, 2.5, 0)
+	gui.Adornee = adorneePart
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	nameLabel.Position = UDim2.new(0, 0, 0, 0)
+	nameLabel.Text = player.DisplayName
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextStrokeTransparency = 0.2
+	nameLabel.TextColor3 = Color3.new(1,1,1)
+	nameLabel.Parent = gui
+
+	local userLabel = Instance.new("TextLabel")
+	userLabel.BackgroundTransparency = 1
+	userLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	userLabel.Position = UDim2.new(0, 0, 0.5, 0)
+	userLabel.Text = "@" .. player.Name
+	userLabel.TextScaled = true
+	userLabel.Font = Enum.Font.Gotham
+	userLabel.TextStrokeTransparency = 0.4
+	userLabel.TextColor3 = Color3.new(1,1,1)
+	userLabel.Parent = gui
+
+	gui.Parent = adorneePart
+
+	espList[player] = {
+		gui = gui,
+		char = char,
+		nameLabel = nameLabel,
+		userLabel = userLabel
+	}
+end
+
+local function setupPlayer(player)
 	player.CharacterAdded:Connect(function()
-		wait(1)
-		createESP(player)
+		coroutine.wrap(function()
+			task.wait(0.2)
+			tryCreateESP(player)
+		end)()
 	end)
 	if player.Character then
-		createESP(player)
+		coroutine.wrap(function()
+			task.wait(0.2)
+			tryCreateESP(player)
+		end)()
 	end
 end
 
-Players.PlayerAdded:Connect(function(player)
-	player.CharacterAdded:Connect(function()
-		wait(1)
-		createESP(player)
-	end)
-end)
+for _, p in ipairs(Players:GetPlayers()) do
+	setupPlayer(p)
+end
 
+Players.PlayerAdded:Connect(setupPlayer)
 Players.PlayerRemoving:Connect(removeESP)
+
+RunService.RenderStepped:Connect(function()
+	local t = tick()
+	for _, v in pairs(espList) do
+		local color = getRainbowColor(t)
+		if v.nameLabel then
+			v.nameLabel.TextColor3 = color
+		end
+		if v.userLabel then
+			v.userLabel.TextColor3 = color
+		end
+	end
+end)
