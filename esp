@@ -1,126 +1,122 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local espList = {}
+local espEnabled = true
 
 local function getRainbowColor(t)
 	return Color3.fromHSV((t % 5) / 5, 1, 1)
 end
 
+local function findAdornee(char)
+	local targetPart = nil
+	local maxY = -math.huge
+	for _, part in pairs(char:GetChildren()) do
+		if part:IsA("BasePart") and part.Position.Y > maxY then
+			targetPart = part
+			maxY = part.Position.Y
+		end
+	end
+	return targetPart
+end
+
 local function removeESP(player)
 	if espList[player] then
-		if espList[player].gui then
-			espList[player].gui:Destroy()
-		end
+		if espList[player].gui then espList[player].gui:Destroy() end
 		espList[player] = nil
 	end
 end
 
-local function findAdorneePart(char)
-	local head = char:FindFirstChild("Head")
-	if head and head:IsA("BasePart") then return head end
-
-	local upperTorso = char:FindFirstChild("UpperTorso")
-	if upperTorso and upperTorso:IsA("BasePart") then return upperTorso end
-
-	local rootPart = char:FindFirstChild("HumanoidRootPart")
-	if rootPart and rootPart:IsA("BasePart") then return rootPart end
-
-	return nil
-end
-
-local function tryCreateESP(player)
-	if player == LocalPlayer then return end
-	if not player.Character or not player.Character:IsDescendantOf(workspace) then return end
-
+local function createESP(player)
+	if not espEnabled then return end
 	local char = player.Character
-	local function waitForParts()
-		for i = 1, 60 do
-			if not player.Character then return nil end
-			local part = findAdorneePart(char)
-			local humanoid = char:FindFirstChildOfClass("Humanoid")
-			if part and humanoid then
-				return part
-			end
-			task.wait(0.1)
-		end
-		return nil
-	end
-
-	local adorneePart = waitForParts()
-	if not adorneePart then return end
-
+	if not char then return end
+	local part = findAdornee(char)
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if not part or not humanoid then return end
 	removeESP(player)
-
 	local gui = Instance.new("BillboardGui")
 	gui.AlwaysOnTop = true
 	gui.Size = UDim2.new(0, 120, 0, 40)
 	gui.StudsOffset = Vector3.new(0, 2.5, 0)
-	gui.Adornee = adorneePart
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-	nameLabel.Position = UDim2.new(0, 0, 0, 0)
-	nameLabel.Text = player.DisplayName
-	nameLabel.TextScaled = true
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextStrokeTransparency = 0.2
-	nameLabel.TextColor3 = Color3.new(1,1,1)
-	nameLabel.Parent = gui
-
-	local userLabel = Instance.new("TextLabel")
-	userLabel.BackgroundTransparency = 1
-	userLabel.Size = UDim2.new(1, 0, 0.5, 0)
-	userLabel.Position = UDim2.new(0, 0, 0.5, 0)
-	userLabel.Text = "@" .. player.Name
-	userLabel.TextScaled = true
-	userLabel.Font = Enum.Font.Gotham
-	userLabel.TextStrokeTransparency = 0.4
-	userLabel.TextColor3 = Color3.new(1,1,1)
-	userLabel.Parent = gui
-
-	gui.Parent = adorneePart
-
-	espList[player] = {
-		gui = gui,
-		char = char,
-		nameLabel = nameLabel,
-		userLabel = userLabel
-	}
+	gui.Adornee = part
+	local name = Instance.new("TextLabel")
+	name.BackgroundTransparency = 1
+	name.Size = UDim2.new(1, 0, 0.5, 0)
+	name.Position = UDim2.new(0, 0, 0, 0)
+	name.Text = player.DisplayName
+	name.TextScaled = true
+	name.Font = Enum.Font.GothamBold
+	name.TextStrokeTransparency = 0.2
+	name.TextColor3 = Color3.new(1,1,1)
+	name.Parent = gui
+	local user = Instance.new("TextLabel")
+	user.BackgroundTransparency = 1
+	user.Size = UDim2.new(1, 0, 0.5, 0)
+	user.Position = UDim2.new(0, 0, 0.5, 0)
+	user.Text = "@" .. player.Name
+	user.TextScaled = true
+	user.Font = Enum.Font.Gotham
+	user.TextStrokeTransparency = 0.4
+	user.TextColor3 = Color3.new(1,1,1)
+	user.Parent = gui
+	gui.Parent = part
+	espList[player] = {gui = gui, name = name, user = user}
 end
 
 local function setupPlayer(player)
 	player.CharacterAdded:Connect(function()
-		coroutine.wrap(function()
-			task.wait(0.2)
-			tryCreateESP(player)
-		end)()
+		task.wait(0.3)
+		createESP(player)
 	end)
 	if player.Character then
-		coroutine.wrap(function()
-			task.wait(0.2)
-			tryCreateESP(player)
-		end)()
+		task.wait(0.3)
+		createESP(player)
 	end
 end
 
 for _, p in ipairs(Players:GetPlayers()) do
-	setupPlayer(p)
+	if p ~= LocalPlayer then
+		setupPlayer(p)
+	end
 end
 
-Players.PlayerAdded:Connect(setupPlayer)
+Players.PlayerAdded:Connect(function(p)
+	if p ~= LocalPlayer then
+		setupPlayer(p)
+	end
+end)
+
 Players.PlayerRemoving:Connect(removeESP)
 
 RunService.RenderStepped:Connect(function()
 	local t = tick()
-	for _, v in pairs(espList) do
-		local color = getRainbowColor(t)
-		if v.nameLabel then
-			v.nameLabel.TextColor3 = color
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+			local part = findAdornee(player.Character)
+			if not espList[player] or not espList[player].gui or not espList[player].gui.Parent or not part then
+				createESP(player)
+			end
 		end
-		if v.userLabel then
-			v.userLabel.TextColor3 = color
+	end
+	if espEnabled then
+		for _, v in pairs(espList) do
+			local c = getRainbowColor(t)
+			if v.name then v.name.TextColor3 = c end
+			if v.user then v.user.TextColor3 = c end
+		end
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	if input.KeyCode == Enum.KeyCode.L then
+		espEnabled = not espEnabled
+		for _, v in pairs(espList) do
+			if v.gui then
+				v.gui.Enabled = espEnabled
+			end
 		end
 	end
 end)
