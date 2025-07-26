@@ -10,15 +10,15 @@ local function getRainbowColor(t)
 end
 
 local function findAdornee(char)
-	local targetPart = nil
+	local part = nil
 	local maxY = -math.huge
-	for _, part in pairs(char:GetChildren()) do
-		if part:IsA("BasePart") and part.Position.Y > maxY then
-			targetPart = part
-			maxY = part.Position.Y
+	for _, p in pairs(char:GetChildren()) do
+		if p:IsA("BasePart") and p.Position.Y > maxY then
+			part = p
+			maxY = p.Position.Y
 		end
 	end
-	return targetPart
+	return part
 end
 
 local function removeESP(player)
@@ -65,46 +65,26 @@ local function createESP(player)
 	espList[player] = {gui = gui, name = name, user = user}
 end
 
-local function setupPlayer(player)
-	player.CharacterAdded:Connect(function()
-		task.wait(0.3)
-		createESP(player)
-	end)
-	if player.Character then
-		task.wait(0.3)
-		createESP(player)
-	end
-end
-
-for _, p in ipairs(Players:GetPlayers()) do
-	if p ~= LocalPlayer then
-		setupPlayer(p)
-	end
-end
-
-Players.PlayerAdded:Connect(function(p)
-	if p ~= LocalPlayer then
-		setupPlayer(p)
-	end
-end)
-
 Players.PlayerRemoving:Connect(removeESP)
 
 RunService.RenderStepped:Connect(function()
 	local t = tick()
-	for _, player in ipairs(Players:GetPlayers()) do
+
+	for _, player in pairs(Players:GetPlayers()) do
 		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
 			local part = findAdornee(player.Character)
-			if not espList[player] or not espList[player].gui or not espList[player].gui.Parent or not part then
-				createESP(player)
+			local data = espList[player]
+			if espEnabled then
+				if not data or not data.gui or not data.gui.Parent or not part then
+					createESP(player)
+				else
+					local color = getRainbowColor(t)
+					if data.name then data.name.TextColor3 = color end
+					if data.user then data.user.TextColor3 = color end
+				end
+			elseif data and data.gui then
+				data.gui.Enabled = false
 			end
-		end
-	end
-	if espEnabled then
-		for _, v in pairs(espList) do
-			local c = getRainbowColor(t)
-			if v.name then v.name.TextColor3 = c end
-			if v.user then v.user.TextColor3 = c end
 		end
 	end
 end)
