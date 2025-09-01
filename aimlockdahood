@@ -30,16 +30,6 @@ Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 8)
 
 local aimbotEnabled = false
 local currentTarget = nil
-local FOV = 150
-
-local circle = Drawing.new("Circle")
-circle.Visible = true
-circle.Color = Color3.fromRGB(255, 255, 255)
-circle.Thickness = 1.5
-circle.NumSides = 64
-circle.Radius = FOV
-circle.Filled = false
-circle.Transparency = 0.8
 
 local function getTargetPart(character)
 	return character:FindFirstChild("Head")
@@ -90,9 +80,6 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 RunService.RenderStepped:Connect(function()
-	circle.Position = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-	circle.Radius = FOV
-
 	if aimbotEnabled then
 		if not currentTarget then
 			currentTarget = getTarget()
@@ -107,10 +94,10 @@ RunService.RenderStepped:Connect(function()
 					local velocity = hrp and hrp.Velocity or Vector3.zero
 					local pingAdjustment = 0.165
 					local predictedPos = part.Position + (velocity * pingAdjustment)
+
 					camera.CFrame = CFrame.new(camera.CFrame.Position, predictedPos)
 				end
 			else
-
 				currentTarget = nil
 			end
 		end
