@@ -5,7 +5,7 @@ local LocalPlayer = Players.LocalPlayer
 local espList = {}
 local espEnabled = true
 
-local ESP_HEIGHT = 3.5 -- chỉnh cao thấp ở đây
+local ESP_HEIGHT = 3.5
 
 local function getRainbowColor(t)
 	return Color3.fromHSV((t % 5) / 5, 1, 1)
