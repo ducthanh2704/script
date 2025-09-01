@@ -30,6 +30,7 @@ Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 8)
 
 local aimbotEnabled = false
 local currentTarget = nil
+local FOV = 200
 
 local function getTargetPart(character)
 	return character:FindFirstChild("Head")
