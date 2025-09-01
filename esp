@@ -5,6 +5,8 @@ local LocalPlayer = Players.LocalPlayer
 local espList = {}
 local espEnabled = true
 
+local ESP_HEIGHT = 3.5 -- chỉnh cao thấp ở đây
+
 local function getRainbowColor(t)
 	return Color3.fromHSV((t % 5) / 5, 1, 1)
 end
@@ -32,7 +34,7 @@ local function createESP(player)
 		gui = Instance.new("BillboardGui")
 		gui.AlwaysOnTop = true
 		gui.Size = UDim2.new(0, 120, 0, 40)
-		gui.StudsOffset = Vector3.new(0, 2.5, 0)
+		gui.StudsOffset = Vector3.new(0, ESP_HEIGHT, 0)
 
 		local name = Instance.new("TextLabel")
 		name.BackgroundTransparency = 1
