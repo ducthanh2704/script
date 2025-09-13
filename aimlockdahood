@@ -8,99 +8,122 @@ local playerGui = localPlayer:WaitForChild("PlayerGui")
 
 local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.ResetOnSpawn = false
-
 local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 200, 0, 70)
+frame.Size = UDim2.new(0, 200, 0, 110)
 frame.Position = UDim2.new(0, 10, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-frame.Active = true
-frame.Draggable = true
+frame.Active, frame.Draggable = true, true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
-local toggleButton = Instance.new("TextButton", frame)
-toggleButton.Size = UDim2.new(0, 180, 0, 40)
-toggleButton.Position = UDim2.new(0, 10, 0, 15)
-toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-toggleButton.TextColor3 = Color3.new(1, 1, 1)
-toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.TextSize = 13
-toggleButton.Text = "Aimlock: OFF (T)"
-toggleButton.AutoButtonColor = false
-Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 8)
+local function createButton(parent, yPos, text)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(0, 180, 0, 40)
+    btn.Position = UDim2.new(0, 10, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 13
+    btn.Text = text
+    btn.AutoButtonColor = false
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+    return btn
+end
 
-local aimbotEnabled = false
+local toggleButton = createButton(frame, 15, "Aimlock: OFF (T)")
+local headshotButton = createButton(frame, 60, "Headshot: OFF (H)")
+
+local aimbotEnabled, headshotEnabled = false, false
 local currentTarget = nil
-local FOV = 200
+local FOV, MaxVel, Smoothness = 150, 100, 0.5
+local PingAdjustBase = 0.08 --Check predict here all noob
 
-local function getTargetPart(character)
-	return character:FindFirstChild("Head")
-	    or character:FindFirstChild("UpperTorso")
-	    or character:FindFirstChild("HumanoidRootPart")
+local function getPingAdjust()
+    local ping = localPlayer:GetNetworkPing() or 0.1
+    return math.clamp(ping * 1.5, 0.05, 0.3)
+end
+
+local function getTargetPart(character, isJumping)
+    if isJumping then
+        return character:FindFirstChild("LowerTorso") or character:FindFirstChild("LeftFoot") or character:FindFirstChild("RightFoot")
+    elseif headshotEnabled then
+        return character:FindFirstChild("Head")
+    end
+    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart")
 end
 
 local function getTarget()
-	local closest = nil
-	local minDist = math.huge
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-			local part = getTargetPart(player.Character)
-			if part then
-				local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-				if onScreen then
-					local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)).Magnitude
-					if dist < minDist and dist <= FOV then
-						minDist = dist
-						closest = player
-					end
-				end
-			end
-		end
-	end
-	return closest
+    if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Humanoid") and currentTarget.Character.Humanoid.Health > 0 then
+        local part = getTargetPart(currentTarget.Character, false)
+        if part then
+            local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+            if onScreen and (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)).Magnitude <= FOV then
+                return currentTarget
+            end
+        end
+    end
+    local closest, minDist = nil, math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local part = getTargetPart(player.Character, false)
+            if part then
+                local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)).Magnitude
+                    if dist < minDist and dist <= FOV then
+                        minDist = dist
+                        closest = player
+                    end
+                end
+            end
+        end
+    end
+    return closest
 end
 
 local function setAimbot(state)
-	aimbotEnabled = state
-	toggleButton.Text = state and "Aimlock: ON (T)" or "Aimlock: OFF (T)"
-	local goalColor = state and Color3.fromRGB(60, 130, 60) or Color3.fromRGB(30, 30, 30)
-	TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundColor3 = goalColor}):Play()
-	if not state then 
-		currentTarget = nil 
-	end
+    aimbotEnabled = state
+    toggleButton.Text = state and "Aimlock: ON (T)" or "Aimlock: OFF (T)"
+    TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundColor3 = state and Color3.fromRGB(60,130,60) or Color3.fromRGB(30,30,30)}):Play()
+    if not state then currentTarget = nil end
 end
 
-toggleButton.MouseButton1Click:Connect(function()
-	setAimbot(not aimbotEnabled)
-end)
+local function setHeadshot(state)
+    headshotEnabled = state
+    headshotButton.Text = state and "Headshot: ON (H)" or "Headshot: OFF (H)"
+    TweenService:Create(headshotButton, TweenInfo.new(0.15), {BackgroundColor3 = state and Color3.fromRGB(130,60,60) or Color3.fromRGB(30,30,30)}):Play()
+end
 
+toggleButton.MouseButton1Click:Connect(function() setAimbot(not aimbotEnabled) end)
+headshotButton.MouseButton1Click:Connect(function() setHeadshot(not headshotEnabled) end)
 UserInputService.InputBegan:Connect(function(input, gpe)
-	if gpe then return end
-	if input.KeyCode == Enum.KeyCode.T then
-		setAimbot(not aimbotEnabled)
-	end
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.T then setAimbot(not aimbotEnabled)
+    elseif input.KeyCode == Enum.KeyCode.H then setHeadshot(not headshotEnabled) end
 end)
 
 RunService.RenderStepped:Connect(function()
-	if aimbotEnabled then
-		if not currentTarget then
-			currentTarget = getTarget()
-		end
-
-		if currentTarget then
-			local char = currentTarget.Character
-			if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
-				local part = getTargetPart(char)
-				if part then
-					local hrp = char:FindFirstChild("HumanoidRootPart")
-					local velocity = hrp and hrp.Velocity or Vector3.zero
-					local pingAdjustment = 0.165
-					local predictedPos = part.Position + (velocity * pingAdjustment)
-
-					camera.CFrame = CFrame.new(camera.CFrame.Position, predictedPos)
-				end
-			else
-				currentTarget = nil
-			end
-		end
-	end
+    if aimbotEnabled then
+        if not currentTarget then currentTarget = getTarget() end
+        if currentTarget then
+            local char = currentTarget.Character
+            if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local vel = hrp.Velocity
+                    if vel.Magnitude > MaxVel then vel = vel.Unit * MaxVel end
+                    local adjustedVel = Vector3.new(vel.X, vel.Y*0.5, vel.Z)
+                    local isJumping = math.abs(vel.Y) > 10
+                    local dynamicSmoothness = isJumping and 0.7 or Smoothness
+                    local part = getTargetPart(char, isJumping)
+                    if part then
+                        local predictedPos = part.Position + (adjustedVel * getPingAdjust())
+                        local targetCFrame = CFrame.new(camera.CFrame.Position, predictedPos)
+                        camera.CFrame = camera.CFrame:Lerp(targetCFrame, dynamicSmoothness)
+                    end
+                end
+            else
+                currentTarget = nil
+            end
+        end
+    end
 end)
