@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 
+-- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "TPGui"
 gui.ResetOnSpawn = false
@@ -29,7 +30,7 @@ local titleCorner = Instance.new("UICorner", title)
 titleCorner.CornerRadius = UDim.new(0, 8)
 
 local input = Instance.new("TextBox", frame)
-input.PlaceholderText = "Display Name"
+input.PlaceholderText = "DisplayName / Username"
 input.Size = UDim2.new(0.9, 0, 0, 40)
 input.Position = UDim2.new(0.05, 0, 0, 50)
 input.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
@@ -53,10 +54,12 @@ tpButton.TextScaled = true
 local tpCorner = Instance.new("UICorner", tpButton)
 tpCorner.CornerRadius = UDim.new(0, 8)
 
-local function teleportToDisplayName(nameInput)
+-- Hàm teleport
+local function teleportToPlayer(nameInput)
 	local targetPlayer = nil
 	for _, player in ipairs(Players:GetPlayers()) do
-		if string.find(player.DisplayName:lower(), nameInput:lower()) then
+		if string.find(player.DisplayName:lower(), nameInput:lower()) 
+		or string.find(player.Name:lower(), nameInput:lower()) then
 			targetPlayer = player
 			break
 		end
@@ -69,10 +72,11 @@ local function teleportToDisplayName(nameInput)
 			myRoot.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(2, 0, 2)
 		end
 	else
-		warn("" .. nameInput)
+		warn("Không tìm thấy: " .. nameInput)
 	end
 end
 
+-- Button click
 tpButton.MouseButton1Click:Connect(function()
-	teleportToDisplayName(input.Text)
+	teleportToPlayer(input.Text)
 end)
