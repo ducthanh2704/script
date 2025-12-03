@@ -1,0 +1,172 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+local SpeedEnabled = false
+local JumpEnabled = false
+local SpeedValue = 15
+local JumpValue = 150
+
+local function SetupBypass()
+    local MainEvent = ReplicatedStorage:FindFirstChild("MainEvent") or ReplicatedStorage:FindFirstChild("RemoteEvent")
+    local Flags = {"CHECKER_1", "TeleportDetect", "OneMoreTime", "BreathingHAMR", "CHECKER", "Detected"}
+    if MainEvent and hookfunction then
+        local oldFireServer = nil
+        oldFireServer = hookfunction(MainEvent.FireServer, function(...)
+            local args = {...}
+            for _, flag in pairs(Flags) do
+                if table.find(args, flag) then
+                    return
+                end
+            end
+            return oldFireServer(...)
+        end)
+    end
+end
+SetupBypass()
+
+local function CFrameSpeed()
+    if SpeedEnabled and RootPart and Humanoid then
+        local Direction = Humanoid.MoveDirection
+        if Direction.Magnitude > 0 then
+            RootPart.CFrame = RootPart.CFrame + (Direction * SpeedValue / 16)
+        end
+    end
+end
+
+local function InfiniteJump()
+    if JumpEnabled and Humanoid then
+        Humanoid.JumpPower = JumpValue
+        Humanoid.JumpHeight = JumpValue / 2
+    else
+        Humanoid.JumpPower = 50
+    end
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.Name = "DaHoodBypassGUI"
+ScreenGui.ResetOnSpawn = false
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 250, 0, 220) -- Tăng kích thước để chứa các nút
+Frame.Position = UDim2.new(0.5, -125, 0.5, -110)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
+local FrameCorner = Instance.new("UICorner") -- Bo tròn góc
+FrameCorner.CornerRadius = UDim.new(0, 10)
+FrameCorner.Parent = Frame
+Frame.Parent = ScreenGui
+Frame.Active = true
+Frame.Draggable = true
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Title.Text = "Da Hood Bypass GUI"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.SourceSansBold
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = Title
+Title.Parent = Frame
+
+local SpeedToggle = Instance.new("TextButton")
+SpeedToggle.Size = UDim2.new(0.9, 0, 0, 40)
+SpeedToggle.Position = UDim2.new(0.05, 0, 0, 50)
+SpeedToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+SpeedToggle.Text = "Speed: OFF"
+SpeedToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedToggle.TextSize = 14
+SpeedToggle.Font = Enum.Font.SourceSans
+local SpeedToggleCorner = Instance.new("UICorner")
+SpeedToggleCorner.CornerRadius = UDim.new(0, 8)
+SpeedToggleCorner.Parent = SpeedToggle
+SpeedToggle.Parent = Frame
+SpeedToggle.MouseButton1Click:Connect(function()
+    SpeedEnabled = not SpeedEnabled
+    SpeedToggle.Text = "Speed: " .. (SpeedEnabled and "ON" or "OFF")
+    SpeedToggle.BackgroundColor3 = SpeedEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(70, 70, 70)
+end)
+
+local SpeedInput = Instance.new("TextBox")
+SpeedInput.Size = UDim2.new(0.9, 0, 0, 40)
+SpeedInput.Position = UDim2.new(0.05, 0, 0, 100)
+SpeedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SpeedInput.Text = tostring(SpeedValue)
+SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedInput.TextSize = 14
+SpeedInput.Font = Enum.Font.SourceSans
+local SpeedInputCorner = Instance.new("UICorner")
+SpeedInputCorner.CornerRadius = UDim.new(0, 8)
+SpeedInputCorner.Parent = SpeedInput
+SpeedInput.Parent = Frame
+SpeedInput.FocusLost:Connect(function()
+    local value = tonumber(SpeedInput.Text)
+    if value and value >= 16 then -- Bỏ giới hạn 200
+        SpeedValue = value
+    else
+        SpeedInput.Text = tostring(SpeedValue)
+    end
+end)
+
+local JumpToggle = Instance.new("TextButton")
+JumpToggle.Size = UDim2.new(0.9, 0, 0, 40)
+JumpToggle.Position = UDim2.new(0.05, 0, 0, 150)
+JumpToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+JumpToggle.Text = "Jump: OFF"
+JumpToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+JumpToggle.TextSize = 14
+JumpToggle.Font = Enum.Font.SourceSans
+local JumpToggleCorner = Instance.new("UICorner")
+JumpToggleCorner.CornerRadius = UDim.new(0, 8)
+JumpToggleCorner.Parent = JumpToggle
+JumpToggle.Parent = Frame
+JumpToggle.MouseButton1Click:Connect(function()
+    JumpEnabled = not JumpEnabled
+    JumpToggle.Text = "Jump: " .. (JumpEnabled and "ON" or "OFF")
+    JumpToggle.BackgroundColor3 = JumpEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(70, 70, 70)
+end)
+
+local JumpInput = Instance.new("TextBox")
+JumpInput.Size = UDim2.new(0.9, 0, 0, 40)
+JumpInput.Position = UDim2.new(0.05, 0, 0, 200)
+JumpInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+JumpInput.Text = tostring(JumpValue)
+JumpInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+JumpInput.TextSize = 14
+JumpInput.Font = Enum.Font.SourceSans
+local JumpInputCorner = Instance.new("UICorner")
+JumpInputCorner.CornerRadius = UDim.new(0, 8)
+JumpInputCorner.Parent = JumpInput
+JumpInput.Parent = Frame
+JumpInput.FocusLost:Connect(function()
+    local value = tonumber(JumpInput.Text)
+    if value and value >= 50 then -- Bỏ giới hạn 200
+        JumpValue = value
+    else
+        JumpInput.Text = tostring(JumpValue)
+    end
+end)
+
+local SpeedConnection = RunService.Heartbeat:Connect(CFrameSpeed)
+local JumpConnection = RunService.Heartbeat:Connect(InfiniteJump)
+
+LocalPlayer.CharacterAdded:Connect(function(NewChar)
+    Character = NewChar
+    Humanoid = Character:WaitForChild("Humanoid")
+    RootPart = Character:WaitForChild("HumanoidRootPart")
+    SetupBypass()
+end)
+
+game:BindToClose(function()
+    SpeedConnection:Disconnect()
+    JumpConnection:Disconnect()
+    ScreenGui:Destroy()
+end)
