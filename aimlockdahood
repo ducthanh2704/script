@@ -5,11 +5,10 @@ local UserInputService = game:GetService("UserInputService")
 local camera = workspace.CurrentCamera
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
-
 local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.ResetOnSpawn = false
 local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 200, 0, 110)
+frame.Size = UDim2.new(0, 200, 0, 70)
 frame.Position = UDim2.new(0, 10, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.Active, frame.Draggable = true, true
@@ -22,49 +21,88 @@ local function createButton(parent, yPos, text)
     btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 13
+    btn.TextSize = 18
     btn.Text = text
     btn.AutoButtonColor = false
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     return btn
 end
 
 local toggleButton = createButton(frame, 15, "Aimlock: OFF (T)")
-local headshotButton = createButton(frame, 60, "Headshot: OFF (H)")
-
-local aimbotEnabled, headshotEnabled = false, false
+local aimbotEnabled = false
 local currentTarget = nil
-local FOV, MaxVel, Smoothness = 150, 100, 0.5
-local PingAdjustBase = 0.00 --Check predict here all noob
+local FOV = 150
+local MaxVel = 100
+local Smoothness = 0.5
+local PingAdjustBase = 0.00199111
+
+local velocityHistory = {}  -- [player] = {vel1, vel2, ..., velN}
+local historyLength = 5    -- Lưu 5 frame gần nhất
 
 local function getPingAdjust()
     local ping = localPlayer:GetNetworkPing() or 0.0
-    return math.clamp(ping * 1, 0.0, 0.5)
+    return math.clamp(ping * PingAdjustBase * 1000, 0.05, 0.4) 
 end
 
-local function getTargetPart(character, isJumping)
-    if isJumping then
-        return character:FindFirstChild("LowerTorso") or character:FindFirstChild("LeftFoot") or character:FindFirstChild("RightFoot")
-    elseif headshotEnabled then
-        return character:FindFirstChild("Head")
+local function isValidTarget(player)
+    if player == localPlayer then return false end
+    if player.Team == localPlayer.Team and player.Team ~= nil then
+        return false
     end
-    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart")
+    if localPlayer:IsFriendsWith(player.UserId) then
+        return false
+    end
+    return true
+end
+
+local function getTargetPart(character)
+    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+end
+
+local function getAverageVelocity(player)
+    local char = player.Character
+    if not char then return Vector3.new() end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return Vector3.new() end
+    
+    velocityHistory[player] = velocityHistory[player] or {}
+    local hist = velocityHistory[player]
+    
+    table.insert(hist, hrp.Velocity)
+    if #hist > historyLength then
+        table.remove(hist, 1)
+    end
+    
+    local avgVel = Vector3.new()
+    for _, v in ipairs(hist) do
+        avgVel = avgVel + v
+    end
+    avgVel = avgVel / #hist
+    
+    if avgVel.Magnitude > MaxVel then
+        avgVel = avgVel.Unit * MaxVel
+    end
+    
+    return avgVel
 end
 
 local function getTarget()
     if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Humanoid") and currentTarget.Character.Humanoid.Health > 0 then
-        local part = getTargetPart(currentTarget.Character, false)
-        if part then
-            local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-            if onScreen and (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)).Magnitude <= FOV then
-                return currentTarget
+        if isValidTarget(currentTarget) then
+            local part = getTargetPart(currentTarget.Character)
+            if part then
+                local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+                if onScreen and (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)).Magnitude <= FOV then
+                    return currentTarget
+                end
             end
         end
     end
+    
     local closest, minDist = nil, math.huge
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local part = getTargetPart(player.Character, false)
+        if isValidTarget(player) and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local part = getTargetPart(player.Character)
             if part then
                 local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
                 if onScreen then
@@ -84,46 +122,54 @@ local function setAimbot(state)
     aimbotEnabled = state
     toggleButton.Text = state and "Aimlock: ON (T)" or "Aimlock: OFF (T)"
     TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundColor3 = state and Color3.fromRGB(60,130,60) or Color3.fromRGB(30,30,30)}):Play()
-    if not state then currentTarget = nil end
+    if not state then 
+        currentTarget = nil 
+        velocityHistory = {}
+    end
 end
 
-local function setHeadshot(state)
-    headshotEnabled = state
-    headshotButton.Text = state and "Headshot: ON (H)" or "Headshot: OFF (H)"
-    TweenService:Create(headshotButton, TweenInfo.new(0.15), {BackgroundColor3 = state and Color3.fromRGB(130,60,60) or Color3.fromRGB(30,30,30)}):Play()
-end
+toggleButton.MouseButton1Click:Connect(function()
+    setAimbot(not aimbotEnabled)
+end)
 
-toggleButton.MouseButton1Click:Connect(function() setAimbot(not aimbotEnabled) end)
-headshotButton.MouseButton1Click:Connect(function() setHeadshot(not headshotEnabled) end)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
-    if input.KeyCode == Enum.KeyCode.T then setAimbot(not aimbotEnabled)
-    elseif input.KeyCode == Enum.KeyCode.H then setHeadshot(not headshotEnabled) end
+    if input.KeyCode == Enum.KeyCode.T then
+        setAimbot(not aimbotEnabled)
+    end
 end)
 
 RunService.RenderStepped:Connect(function()
     if aimbotEnabled then
-        if not currentTarget then currentTarget = getTarget() end
+        if not currentTarget then
+            currentTarget = getTarget()
+        end
         if currentTarget then
             local char = currentTarget.Character
             if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local vel = hrp.Velocity
-                    if vel.Magnitude > MaxVel then vel = vel.Unit * MaxVel end
-                    local adjustedVel = Vector3.new(vel.X, vel.Y*0.5, vel.Z)
-                    local isJumping = math.abs(vel.Y) > 10
+                local part = getTargetPart(char)
+                if part then
+                    local avgVel = getAverageVelocity(currentTarget)
+                    local adjustedVel = Vector3.new(avgVel.X, avgVel.Y * 0.5, avgVel.Z)  -- Giảm Y như cũ
+                    
+                    local predictAmount = getPingAdjust()
+                    local predictedPos = part.Position + (adjustedVel * predictAmount)
+                    
+                    local isJumping = math.abs(avgVel.Y) > 10
                     local dynamicSmoothness = isJumping and 0.3 or Smoothness
-                    local part = getTargetPart(char, isJumping)
-                    if part then
-                        local predictedPos = part.Position + (adjustedVel * getPingAdjust())
-                        local targetCFrame = CFrame.new(camera.CFrame.Position, predictedPos)
-                        camera.CFrame = camera.CFrame:Lerp(targetCFrame, dynamicSmoothness)
-                    end
+                    
+                    local targetCFrame = CFrame.new(camera.CFrame.Position, predictedPos)
+                    camera.CFrame = camera.CFrame:Lerp(targetCFrame, dynamicSmoothness)
                 end
             else
                 currentTarget = nil
             end
+        else
+            currentTarget = nil
         end
     end
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    velocityHistory[plr] = nil
 end)
