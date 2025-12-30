@@ -41,7 +41,7 @@ local historyLength = 5    -- Lưu 5 frame gần nhất
 
 local function getPingAdjust()
     local ping = localPlayer:GetNetworkPing() or 0.0
-    return math.clamp(ping * PingAdjustBase * 1000, 0.05, 0.4) 
+    return math.clamp(ping * PingAdjustBase * 1000, 0.05, 0.4)
 end
 
 local function isValidTarget(player)
