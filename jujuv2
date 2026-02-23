@@ -1,11 +1,3 @@
-if not LPH_OBFUSCATED then
-	getfenv().LPH_NO_VIRTUALIZE = function(...) return ... end
-	getfenv().LPH_NO_UPVALUES = function(...) return ... end
-	getfenv().LPH_JIT_MAX = function(...) return ... end
-	getfenv().LPH_ENCSTR = function(...) return ... end
-	getfenv().LPH_JIT = function(...) return ... end
-end
-
 if getgenv().unload_juju then
 	getgenv().unload_juju()
 	task.wait(1)
@@ -49,15 +41,15 @@ LPH_NO_VIRTUALIZE(function()
 					if not old_connections[func] then
 						new[#new+1] = connection
 						old_connections[func] = 1
-					end
+					end	
 				end
 				return new
 			end
 		else
-			loadstring(game:HttpGet(string.find(exec, "Syn") and "https://raw.githubusercontent.com/jujudotlol/jujudotlol.github.io/main/solara_drawing.lua" or "https://raw.githubusercontent.com/jujudotlol/jujudotlol.github.io/main/wave_drawing.lua"))()
+			print("Hello")
 		end
 	end
-end)()
+end)
 
 --[[
                      _         _      _            
