@@ -2,7 +2,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local Speed = 136
+local Speed = 222
 local Enabled = false
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
