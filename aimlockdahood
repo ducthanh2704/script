@@ -3,194 +3,176 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local camera = workspace.CurrentCamera
-local localPlayer = Players.LocalPlayer
-local playerGui = localPlayer:WaitForChild("PlayerGui")
+local lp = Players.LocalPlayer
 
-local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.ResetOnSpawn = false
+local sg = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
+sg.ResetOnSpawn = false
 
-local frame = Instance.new("Frame", screenGui)
+local frame = Instance.new("Frame", sg)
 frame.Size = UDim2.new(0, 200, 0, 70)
 frame.Position = UDim2.new(0, 10, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 frame.Active = true
 frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
-local function createButton(parent, yPos, text)
-    local btn = Instance.new("TextButton", parent)
-    btn.Size = UDim2.new(0, 180, 0, 40)
-    btn.Position = UDim2.new(0, 10, 0, yPos)
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 18
-    btn.Text = text
-    btn.AutoButtonColor = false
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-    return btn
+local function createBtn(parent, y, txt)
+    local b = Instance.new("TextButton", parent)
+    b.Size = UDim2.new(0, 180, 0, 40)
+    b.Position = UDim2.new(0, 10, 0, y)
+    b.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    b.TextColor3 = Color3.new(1,1,1)
+    b.Font = Enum.Font.SourceSansBold
+    b.TextSize = 18
+    b.Text = txt
+    b.AutoButtonColor = false
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+    return b
 end
 
-local toggleButton = createButton(frame, 15, "Aimlock: OFF (T)")
-local aimbotEnabled = false
-local currentTarget = nil
+local tb = createBtn(frame, 15, "Aimlock: OFF (T)")
+local enabled = false
+local target = nil
 
 local FOV = 150
-local MaxVel = 100
-local Smoothness = 0.5
-local PingAdjustBase = 0.00199111
+local SMOOTH = 0.5
+local PRED = 0.03
 
-local velocityHistory = {}  -- [player] = {vel1, vel2, ..., velN}
-local historyLength = 5
+local JUMP_OFFSET = 0.04 
+local FALL_OFFSET = -0.03 
 
-local function getPingAdjust()
-    local ping = localPlayer:GetNetworkPing() or 0.0
-    return math.clamp(ping * PingAdjustBase * 1000, 0.05, 0.4)
+local velocityCalculators = {}
+
+local function calculateVelocity(hrp)
+    local lastPosition = hrp.Position
+    local lastTime = tick()
+    
+    return function()
+        local currentPosition = hrp.Position
+        local currentTime = tick()
+        local deltaTime = currentTime - lastTime
+        
+        if deltaTime > 0 then
+            local vel = (currentPosition - lastPosition) / deltaTime
+            lastPosition = currentPosition
+            lastTime = currentTime
+            return vel
+        end
+        return Vector3.new()
+    end
 end
 
-local function isValidTarget(player)
-    if player == localPlayer then return false end
-    return true
-end
-
-local function getTargetPart(character)
-    return character:FindFirstChild("UpperTorso") 
-        or character:FindFirstChild("Head") 
-        or character:FindFirstChild("HumanoidRootPart")
-end
-
-local function getAverageVelocity(player)
+local function getResolvedVelocity(player)
     local char = player.Character
     if not char then return Vector3.new() end
     
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return Vector3.new() end
     
-    velocityHistory[player] = velocityHistory[player] or {}
-    local hist = velocityHistory[player]
-    
-    table.insert(hist, hrp.Velocity)
-    if #hist > historyLength then
-        table.remove(hist, 1)
+    if not velocityCalculators[player] then
+        velocityCalculators[player] = calculateVelocity(hrp)
     end
     
-    local avgVel = Vector3.new()
-    for _, v in ipairs(hist) do
-        avgVel = avgVel + v
-    end
-    avgVel = avgVel / #hist
-    
-    if avgVel.Magnitude > MaxVel then
-        avgVel = avgVel.Unit * MaxVel
-    end
-    
-    return avgVel
+    return velocityCalculators[player]()
+end
+
+local function valid(plr)
+    return plr ~= lp
+end
+
+local function getPart(char)
+    return char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
 end
 
 local function getTarget()
-    if currentTarget and currentTarget.Character then
-        local hum = currentTarget.Character:FindFirstChild("Humanoid")
-        if hum and hum.Health > 0 then
-            if isValidTarget(currentTarget) then
-                local part = getTargetPart(currentTarget.Character)
-                if part then
-                    local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-                    if onScreen then
-                        local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                        if dist <= FOV then
-                            return currentTarget
+    if target and target.Character then
+        local h = target.Character:FindFirstChild("Humanoid")
+        if h and h.Health > 0 and valid(target) then
+            local p = getPart(target.Character)
+            if p then
+                local sp, os = camera:WorldToViewportPoint(p.Position)
+                if os then
+                    local cen = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+                    if (Vector2.new(sp.X, sp.Y) - cen).Magnitude <= FOV then
+                        return target
+                    end
+                end
+            end
+        end
+    end
+
+    local closest, md = nil, math.huge
+    local cen = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+
+    for _, p in Players:GetPlayers() do
+        if valid(p) and p.Character then
+            local h = p.Character:FindFirstChild("Humanoid")
+            if h and h.Health > 0 then
+                local pt = getPart(p.Character)
+                if pt then
+                    local sp, os = camera:WorldToViewportPoint(pt.Position)
+                    if os then
+                        local d = (Vector2.new(sp.X, sp.Y) - cen).Magnitude
+                        if d < md and d <= FOV then
+                            md = d
+                            closest = p
                         end
                     end
                 end
             end
         end
     end
-    
-    local closest, minDist = nil, math.huge
-    local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if isValidTarget(player) and player.Character then
-            local hum = player.Character:FindFirstChild("Humanoid")
-            if hum and hum.Health > 0 then
-                local part = getTargetPart(player.Character)
-                if part then
-                    local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-                    if onScreen then
-                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                        if dist < minDist and dist <= FOV then
-                            minDist = dist
-                            closest = player
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
     return closest
 end
 
-local function setAimbot(state)
-    aimbotEnabled = state
-    toggleButton.Text = state and "Aimlock: ON (T)" or "Aimlock: OFF (T)"
-    TweenService:Create(toggleButton, TweenInfo.new(0.15), {
-        BackgroundColor3 = state and Color3.fromRGB(60,130,60) or Color3.fromRGB(30,30,30)
-    }):Play()
-    
-    if not state then 
-        currentTarget = nil 
-        velocityHistory = {}
-    end
+local function toggle(state)
+    enabled = state
+    tb.Text = state and "Aimlock: ON (T)" or "Aimlock: OFF (T)"
+    TweenService:Create(tb, TweenInfo.new(0.15), {BackgroundColor3 = state and Color3.fromRGB(60,130,60) or Color3.fromRGB(30,30,30)}):Play()
+    if not state then target = nil end
 end
 
-toggleButton.MouseButton1Click:Connect(function()
-    setAimbot(not aimbotEnabled)
-end)
+tb.MouseButton1Click:Connect(function() toggle(not enabled) end)
 
-UserInputService.InputBegan:Connect(function(input, gpe)
+UserInputService.InputBegan:Connect(function(i, gpe)
     if gpe then return end
-    if input.KeyCode == Enum.KeyCode.T then
-        setAimbot(not aimbotEnabled)
-    end
+    if i.KeyCode == Enum.KeyCode.T then toggle(not enabled) end
 end)
 
 RunService.RenderStepped:Connect(function()
-    if not aimbotEnabled then return end
-    
-    if not currentTarget then
-        currentTarget = getTarget()
-    end
-    
-    if currentTarget then
-        local char = currentTarget.Character
+    if not enabled then return end
+    if not target then target = getTarget() end
+
+    if target then
+        local char = target.Character
         if char then
-            local hum = char:FindFirstChild("Humanoid")
-            if hum and hum.Health > 0 then
-                local part = getTargetPart(char)
+            local h = char:FindFirstChild("Humanoid")
+            if h and h.Health > 0 then
+                local part = getPart(char)
                 if part then
-                    local avgVel = getAverageVelocity(currentTarget)
-                    local adjustedVel = Vector3.new(avgVel.X, avgVel.Y * 0.5, avgVel.Z)
+                    local vel = getResolvedVelocity(target)
                     
-                    local predictAmount = getPingAdjust()
-                    local predictedPos = part.Position + (adjustedVel * predictAmount)
+
+                    local offsetPred = PRED
+                    if vel.Y > 15 then
+                        offsetPred = PRED + JUMP_OFFSET
+                    elseif vel.Y < -10 then
+                        offsetPred = PRED + FALL_OFFSET
+                    end
                     
-                    local isJumping = math.abs(avgVel.Y) > 10
-                    local dynamicSmoothness = isJumping and 0.3 or Smoothness
+                    local predPos = part.Position + (vel * offsetPred)
                     
-                    local targetCFrame = CFrame.new(camera.CFrame.Position, predictedPos)
-                    camera.CFrame = camera.CFrame:Lerp(targetCFrame, dynamicSmoothness)
+                    local tc = CFrame.new(camera.CFrame.Position, predPos)
+                    camera.CFrame = camera.CFrame:Lerp(tc, SMOOTH)
                 end
             else
-                currentTarget = nil
+                target = nil
             end
         else
-            currentTarget = nil
+            target = nil
         end
     end
 end)
 
 Players.PlayerRemoving:Connect(function(plr)
-    velocityHistory[plr] = nil
+    velocityCalculators[plr] = nil
 end)
