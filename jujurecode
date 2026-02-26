@@ -239,15 +239,6 @@ LPH_JIT_MAX(function()
 	end
 end)()
 
-if not arg or #arg < 2 then
-	if getgenv().Xeno then
-		arg = "UpdateMousePosI2"
-	else
-		lplr:Kick("juju > if the game updated recently, please wait for an update")
-		return
-	end
-end
-
 do
 	for _, image in images do
 		images[_] = crypt.base64.decode(image)
